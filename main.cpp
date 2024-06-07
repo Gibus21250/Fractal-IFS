@@ -29,16 +29,11 @@ int main() {
 
     while (!glfwWindowShouldClose(window))
     {
-        
+        glfwPollEvents();
     }
 
     glfwDestroyWindow(window);
     glfwTerminate();
     return 0;
-}
-
-void initOpengl()
-{
-    glClearColor(1.0f, 1.0f, 1.0f, 0.0f);
 }
 
