@@ -12,6 +12,6 @@ set(GLM_INCLUDE_PATH "" CACHE PATH "third-party/include/glm/glm.hpp" )
 
 
 link_directories(/third-party/libs)
-add_executable(IFS main.cpp)
-target_link_libraries(IFS glfw)
+add_executable(IFS main.cpp utils/shader.cpp)
+target_link_libraries(IFS glfw GLEW)
 
