@@ -1,3 +1,0 @@
-/home1/nj123548/CLionProjects/IFS/cmake-build-debug/CMakeFiles/IFS.dir
-/home1/nj123548/CLionProjects/IFS/cmake-build-debug/CMakeFiles/edit_cache.dir
-/home1/nj123548/CLionProjects/IFS/cmake-build-debug/CMakeFiles/rebuild_cache.dir

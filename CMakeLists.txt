@@ -1,17 +1,33 @@
-cmake_minimum_required(VERSION 3.28)
+cmake_minimum_required(VERSION 3.20)
 project(IFS)
 
 set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD_REQUIRED True)
 
-find_package(OpenGL REQUIRED)
+add_subdirectory(third-party/glfw)
+add_subdirectory(third-party/kompute)
 
-set(GLFW_INCLUDE_PATH "" CACHE PATH "third-party/include/GLFW/glfw.h" )
-set(GLFW_LIBRARY "" CACHE FILEPATH "third-party/libs/libglfw3.a" )
+target_compile_definitions(kompute PRIVATE _CRT_SECURE_NO_WARNINGS=1)
 
-set(GLM_INCLUDE_PATH "" CACHE PATH "third-party/include/glm/glm.hpp" )
+set(GLFW_INCLUDE_PATH "" CACHE PATH "third-party/glfw/include/GLFW/glfw.h")
+
+include_directories(${kompute_SOURCE_DIR}/src/include)
 
 
-link_directories(/third-party/libs)
-add_executable(IFS main.cpp utils/shader.cpp)
-target_link_libraries(IFS glfw GLEW)
+# Compiling shader
+# To add more shaders simply copy the vulkan_compile_shader command and replace it with your new shader
+vulkan_compile_shader(
+    INFILE shader/my_shader.comp
+    OUTFILE shader/my_shader.hpp
+    NAMESPACE "shader")
 
+# Then add it to the library, so you can access it later in your code
+#add_library(shader INTERFACE "shader/my_shader.hpp")
+#target_include_directories(shader INTERFACE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
+
+include_directories(third-party/glm/glm third-party/glfw/include third-party/kompute/src/include)
+
+add_executable(${PROJECT_NAME} main.cpp utils/shader.cpp)
+target_link_libraries(${PROJECT_NAME} glfw kompute::kompute)
+
+add_definitions(-D_CRT_SECURE_NO_WARNINGS)
