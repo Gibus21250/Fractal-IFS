@@ -1,2 +1,4 @@
 .vscode
+cmake*
 build
+.idea
