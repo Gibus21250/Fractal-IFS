@@ -1,4 +1,4 @@
 .vscode
-cmake*
+cmake*/
 build
 .idea
