@@ -2,51 +2,77 @@
 #include <vector>
 
 #include <kompute/Kompute.hpp>
-#include <GLFW/glfw3.h>
 
-GLFWwindow* window;
+#include "engine/engine.h"
+#include "engine/utils.h"
 
-int main() {
+int main()
+{
 
-    std::ifstream myfile; 
-    myfile.open("shaders/testcomp.spv", std::ios::binary);
+    //Initialize small render engine
+    Engine e;
+    e.initEngine();
 
-     if (!myfile.is_open()) {
-        std::cout << "wesh c'est null ça mere\n";
-        return 1;
-    }
+    auto instance = std::make_shared<vk::Instance>(e.getVkInstance());
+    auto physicalDevice = std::make_shared<vk::PhysicalDevice>(e.getVkPhysicalDevice());
+    auto device = std::make_shared<vk::Device>(e.getVkDevice());
 
-    myfile.seekg(0, std::ios::end);
-    size_t fileSize = myfile.tellg();
-    myfile.seekg(0, std::ios::beg);
-    size_t numWords = fileSize / sizeof(uint32_t);
+    std::vector<uint32_t> familyIndice{2};
+    auto computeQueue = std::make_shared<vk::Queue>(e.getComputequeue());
+    std::vector<std::shared_ptr<vk::Queue>> computeList{computeQueue};
 
-    std::vector<uint32_t> spirv(numWords);
+    kp::Manager mgr{instance, physicalDevice, device, familyIndice, computeList};
 
-    myfile.read(reinterpret_cast<char*>(spirv.data()), fileSize);
+    // 2. Create and initialise Kompute Tensors through manager
 
-    std::shared_ptr<kp::Sequence> sq = nullptr;
+    // Default tensor constructor simplifies creation of float values
+    auto tensorInA = mgr.tensor({ 2., 2., 2. });
+    auto tensorInB = mgr.tensor({ 1., 2., 3. });
+    // Explicit type constructor supports uint32, int32, double, float and bool
+    auto tensorOutA = mgr.tensorT<uint32_t>({ 0, 0, 0 });
+    auto tensorOutB = mgr.tensorT<uint32_t>({ 0, 0, 0 });
 
-    {
-        kp::Manager mgr(1, {}, { "VK_EXT_shader_atomic_float" });
+    std::vector<std::shared_ptr<kp::Tensor>> params = {tensorInA, tensorInB, tensorOutA, tensorOutB};
 
-        std::shared_ptr<kp::Tensor> tensor = mgr.tensor({ 0, 0, 0 });
+    // 3. Create algorithm based on shader (supports buffers & push/spec constants)
+    kp::Workgroup workgroup({3, 1, 1});
+    std::vector<float> specConsts({ 2 });
+    std::vector<float> pushConstsA({ 2.0 });
+    std::vector<float> pushConstsB({ 3.0 });
 
-        std::shared_ptr<kp::Algorithm> algo =
-          mgr.algorithm({ tensor }, spirv, kp::Workgroup({ 1 }), {}, { 0.0, 0.0, 0.0 });
+    std::vector<char> buffer = Utils::readFile("shaders/testcomp.spv");
+    //Convert vector type char into int32 for kompute
+    std::vector<uint32_t> spirv = {(uint32_t*)buffer.data(), (uint32_t*)(buffer.data() + buffer.size())};
 
-        sq = mgr.sequence()
-               ->record<kp::OpTensorSyncDevice>({ tensor })
-               ->record<kp::OpAlgoDispatch>(algo,
-                                            std::vector<float>{ 0.1, 0.2, 0.3 })
-               ->record<kp::OpAlgoDispatch>(algo,
-                                            std::vector<float>{ 0.3, 0.2, 0.1 })
-               ->record<kp::OpTensorSyncLocal>({ tensor })
-               ->eval();
+    auto algorithm = mgr.algorithm(params,
+                                   spirv,
+                                   workgroup,
+                                   specConsts,
+                                   pushConstsA);
 
-        std::cout << tensor->data<float>()[0] << " " <<
-        tensor->data<float>()[0] << " " << tensor->data<float>()[0];
+    // 4. Run operation synchronously using sequence
+    mgr.sequence()
+            ->record<kp::OpTensorSyncDevice>(params)
+            ->record<kp::OpAlgoDispatch>(algorithm) // Binds default push consts
+            ->eval() // Evaluates the two recorded operations
+            ->record<kp::OpAlgoDispatch>(algorithm, pushConstsB) // Overrides push consts
+            ->eval(); // Evaluates only last recorded operation
 
-    }
+    // 5. Sync results from the GPU asynchronously
+    auto sq = mgr.sequence();
+    sq->evalAsync<kp::OpTensorSyncLocal>(params);
+
+    // ... Do other work asynchronously whilst GPU finishes
+
+    sq->evalAwait();
+
+
+    std::cout << "---------------------------------------------\n";
+    // Prints the first output which is: { 4, 8, 12 }
+    for (const float& elem : tensorOutA->vector()) std::cout << elem << "  ";
+    std::cout << std::endl;
+    // Prints the second output which is: { 10, 10, 10 }
+    for (const float& elem : tensorOutB->vector()) std::cout << elem << "  ";
+    std::cout << std::endl;
+    std::cout << "---------------------------------------------\n";
 }
-
