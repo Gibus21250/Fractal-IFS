@@ -23,10 +23,12 @@ int main()
 
     kp::Manager mgr{instance, physicalDevice, device, familyIndice, computeList};
 
+
     // 2. Create and initialise Kompute Tensors through manager
 
     // Default tensor constructor simplifies creation of float values
     auto tensorInA = mgr.tensor({ 2., 2., 2. });
+
     auto tensorInB = mgr.tensor({ 1., 2., 3. });
     // Explicit type constructor supports uint32, int32, double, float and bool
     auto tensorOutA = mgr.tensorT<uint32_t>({ 0, 0, 0 });
@@ -60,6 +62,7 @@ int main()
 
     // 5. Sync results from the GPU asynchronously
     auto sq = mgr.sequence();
+
     sq->evalAsync<kp::OpTensorSyncLocal>(params);
 
     // ... Do other work asynchronously whilst GPU finishes
@@ -75,4 +78,10 @@ int main()
     for (const float& elem : tensorOutB->vector()) std::cout << elem << "  ";
     std::cout << std::endl;
     std::cout << "---------------------------------------------\n";
+
+    e.run();
+
+    mgr.destroy();
+    e.destroy();
+
 }
