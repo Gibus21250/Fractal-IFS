@@ -8,15 +8,23 @@
 #include <vulkan/vulkan.h>
 #include <GLFW/glfw3.h>
 
+#include "vulkan/vulkan.hpp"
+
 
 class Engine {
 
+    template<class type>
+    struct optional {
+        type value;
+        bool hasValue;
+    };
+
     struct QueueFamilyIndices {
-        std::optional<uint32_t> graphicsFamily;
-        std::optional<uint32_t> presentFamily;
+        optional<uint32_t> graphicsFamily;
+        optional<uint32_t> presentFamily;
 
         bool isComplete() const {
-            return graphicsFamily.has_value() && presentFamily.has_value();
+            return graphicsFamily.hasValue && presentFamily.hasValue;
         }
     };
 
@@ -36,6 +44,7 @@ public:
     VkPhysicalDevice getVkPhysicalDevice() const {return physicalDevice;};
     VkDevice getVkDevice() const {return device;};
     VkQueue getComputequeue() const {return computeQueue;};
+    void destroy();
 
 private:
     GLFWwindow* window;
@@ -122,11 +131,12 @@ private:
     void mainLoop();
     void drawFrame();
 
-    void cleanup();
     void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
 
     void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo);
     void setupDebugMessenger();
+
+    void cleanup();
 
     VkShaderModule createShaderModule(const std::vector<char>& code);
     VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats);
