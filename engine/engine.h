@@ -10,6 +10,8 @@
 
 #include "vulkan/vulkan.hpp"
 
+#include <glm/glm.hpp>
+
 
 class Engine {
 
@@ -46,6 +48,38 @@ public:
     VkQueue getComputequeue() const {return computeQueue;};
     void destroy();
 
+    void createBuffer(void *data, uint32_t size, uint32_t nbVertices, VkBufferUsageFlagBits flags,VkMemoryPropertyFlags properties);
+
+    struct ObjectInfo {
+        VkBuffer buffer;
+        uint32_t nbVertices;
+    };
+
+    struct Vertex {
+        glm::vec2 pos;
+
+        static VkVertexInputBindingDescription getBindingDescription() {
+            VkVertexInputBindingDescription bindingDescription{};
+            bindingDescription.binding = 0;
+            bindingDescription.stride = sizeof(Vertex);
+            bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+            return bindingDescription;
+        }
+
+        static std::array<VkVertexInputAttributeDescription, 1> getAttributeDescriptions() {
+            std::array<VkVertexInputAttributeDescription, 1> attributeDescriptions{};
+
+            attributeDescriptions[0].binding = 0;
+            attributeDescriptions[0].location = 0;
+            attributeDescriptions[0].format = VK_FORMAT_R32G32_SFLOAT;
+            attributeDescriptions[0].offset = offsetof(Vertex, pos);
+
+            return attributeDescriptions;
+        }
+
+
+    };
+
 private:
     GLFWwindow* window;
 
@@ -61,6 +95,9 @@ private:
     VkQueue presentQueue;
     VkQueue computeQueue;
     VkQueue transfertQueue;
+
+    std::vector<ObjectInfo> objectmanaged;
+    std::vector<VkDeviceMemory> vkmemorymanaged;
 
     VkSwapchainKHR swapChain;
     std::vector<VkImage> swapChainImages;
@@ -149,6 +186,7 @@ private:
     std::vector<const char*> getRequiredExtensions();
 
     bool checkValidationLayerSupport();
+    uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
 };
 
 

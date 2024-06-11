@@ -160,6 +160,15 @@ void Engine::cleanup() {
 
     vkDestroyCommandPool(device, commandPool, nullptr);
 
+    //Destroy Buffers
+    for (auto object : objectmanaged) {
+        vkDestroyBuffer(device, object.buffer, nullptr);
+    }
+
+    for (auto vkmemory : vkmemorymanaged) {
+        vkFreeMemory(device, vkmemory, nullptr);
+    }
+
     vkDestroyDevice(device, nullptr);
 
     if (enableValidationLayers) {
@@ -631,10 +640,15 @@ void Engine::createGraphicsPipeline() {
 
     VkPipelineShaderStageCreateInfo shaderStages[] = {vertShaderStageInfo, fragShaderStageInfo};
 
+    auto bindingVertexInfo = Vertex::getBindingDescription();
+    auto attributeVertexInfo = Vertex::getAttributeDescriptions();
+
     VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
     vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-    vertexInputInfo.vertexBindingDescriptionCount = 0;
-    vertexInputInfo.vertexAttributeDescriptionCount = 0;
+    vertexInputInfo.vertexBindingDescriptionCount = 1;
+    vertexInputInfo.pVertexBindingDescriptions = &bindingVertexInfo;
+    vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeVertexInfo.size());
+    vertexInputInfo.pVertexAttributeDescriptions = attributeVertexInfo.data();
 
     VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
     inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
@@ -805,7 +819,14 @@ void Engine::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIn
     scissor.extent = swapChainExtent;
     vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
-    vkCmdDraw(commandBuffer, 3, 1, 0, 0);
+
+    for (auto object: objectmanaged) {
+        VkBuffer vertexBuffers[] = {object.buffer};
+        VkDeviceSize offsets[] = {0};
+        vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
+
+        vkCmdDraw(commandBuffer, object.nbVertices, 1, 0, 0);
+    }
 
     vkCmdEndRenderPass(commandBuffer);
 
@@ -1077,4 +1098,70 @@ bool Engine::checkValidationLayerSupport() {
     }
 
     return true;
+}
+
+void Engine::createBuffer(void *genineData, uint32_t size, uint32_t nbVertices, VkBufferUsageFlagBits flags,VkMemoryPropertyFlags properties)
+{
+    VkBufferCreateInfo bufferInfo{};
+    bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    bufferInfo.size = size;
+    bufferInfo.usage = flags;
+    bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+    VkBuffer buff;
+
+    if (vkCreateBuffer(device, &bufferInfo, nullptr, &buff) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create vertex buffer!");
+    }
+
+
+
+    VkMemoryRequirements memRequirements;
+    vkGetBufferMemoryRequirements(device, buff, &memRequirements);
+
+    //Create a VkMemory by buffer (TODO Change this later)
+    VkMemoryAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    allocInfo.allocationSize = memRequirements.size;
+    allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+
+    VkDeviceMemory mem;
+
+    if (vkAllocateMemory(device, &allocInfo, nullptr, &mem) != VK_SUCCESS) {
+        throw std::runtime_error("failed to allocate vertex buffer memory!");
+    }
+
+
+
+    //Copy data to the memory
+    vkBindBufferMemory(device, buff, mem, 0);
+
+    void* data;
+    vkMapMemory(device, mem, 0, bufferInfo.size, 0, &data);
+        memcpy(data, genineData, size);
+    vkUnmapMemory(device, mem);
+
+    ObjectInfo tmp{
+        buff,
+        nbVertices
+    };
+
+    objectmanaged.push_back(tmp);
+    vkmemorymanaged.push_back(mem);
+}
+
+uint32_t Engine::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties)
+{
+    VkPhysicalDeviceMemoryProperties memProperties;
+    vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memProperties);
+
+    for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++)
+    {
+        if ((typeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties)
+        {
+            return i;
+        }
+    }
+
+    throw std::runtime_error("failed to find suitable memory type!");
 }
