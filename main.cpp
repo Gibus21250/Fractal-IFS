@@ -1,5 +1,6 @@
 #include <iostream>
 #include <vector>
+#include <chrono>
 
 #include <kompute/Kompute.hpp>
 
@@ -17,40 +18,47 @@ int main()
     Engine e;
     e.initEngine();
 
-    //Triangle
-    std::vector<glm::vec2> vertices = {
-            {0.0f, -0.7f},
-            {-0.5f, 0.5f},
-            {0.5f, 0.5f}
-    };
-
-
     std::vector<glm::mat3> transforms =
     {
         glm::mat3(0.5, 0, 0,
-        0, 0.5, -0.25,
-        0, 0, 1),
-
-        glm::mat3(0.5, 0, -0.25,
-                  0, 0.5, 0.25,
+                  0, 0.5, -0.5,
                   0, 0, 1),
 
-        glm::mat3(0.5, 0, 0.25,
-                  0, 0.5, 0.25,
+        glm::mat3(0.5, 0, -0.5,
+                  0, 0.5, 0.5,
+                  0, 0, 1),
+
+        glm::mat3(0.5, 0, 0.5,
+                  0, 0.5, 0.5,
                   0, 0, 1),
 
     };
 
+    size_t nbIteration = 7, nbMaxPoints = 3;
 
-    IFS(vertices, transforms, 1);
+    for (int i = 0; i < nbIteration; ++i) {
+        nbMaxPoints *= transforms.size();
+    }
 
+    std::cout << "Allocation needed: " << nbMaxPoints * sizeof(glm::vec2) << " bytes\n";
+    auto* buff = (glm::vec2*) e.createBuffer(nbMaxPoints * sizeof(glm::vec2), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
-    e.createBuffer((void *) vertices.data(),  vertices.size() * sizeof(glm::vec2), vertices.size(), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    buff[0] = glm::vec2(0.0f, -1.0f);
+    buff[1] = glm::vec2(-1.0f, 1.0f);
+    buff[2] = glm::vec2(1.0f, 1.0f);
 
+    auto t1 = std::chrono::high_resolution_clock::now();
+    IFS(buff, 3, transforms, nbIteration);
+    auto t2 = std::chrono::high_resolution_clock::now();
+
+    std::cout << "Time spent: " << t2 - t1 << "\n";
+
+    std::vector<void*> res = {buff};
+
+    e.addDrawableObject(res, nbMaxPoints);
 
     e.run();
     e.destroy();
-
 }
 
 //Transform are 3D matrices bc of heterogeneous coord
