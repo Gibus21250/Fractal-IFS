@@ -8,7 +8,7 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
-void IFS(std::vector<glm::vec2>& object, std::vector<glm::mat3>& transorms, uint32_t nbIteration);
+void IFS(glm::vec2* object, size_t nb, std::vector<glm::mat3>& tranforms, uint32_t nbIteration);
 
 int main()
 {
@@ -53,32 +53,23 @@ int main()
 
 }
 
-//Transform are 3D matrices bc of heterogenous coord
-void IFS(std::vector<glm::vec2>& object, std::vector<glm::mat3>& transorms, uint32_t nbIteration)
+//Transform are 3D matrices bc of heterogeneous coord
+void IFS(glm::vec2* object, size_t nbVertices, std::vector<glm::mat3>& tranforms, uint32_t nbIteration)
 {
-    uint32_t padding = object.size();
-    uint32_t nbMaxPoints = padding;
-
-    for (int i = 0; i < nbIteration; ++i) {
-        nbMaxPoints *= transorms.size();
-    }
-
-    object.resize(nbMaxPoints);
-
     //For each iteration
     for (int i = 0; i < nbIteration; ++i)
     {
 
         //For each transform, we write result from the end to the start of the buffer
-        for (int j = 0; j < transorms.size(); ++j)
+        for (size_t j = 0; j < tranforms.size(); ++j)
         {
             //We apply tranform for each point
-            for (int k = 0; k < padding; ++k)
+            for (size_t k = 0; k < nbVertices; ++k)
             {
-                object[((transorms.size() - 1 + j) * padding) + k] = transorms[j] * glm::vec3(object[k], 0.0);
+                object[((tranforms.size() - 1 - j)) * nbVertices + k] = glm::vec3(object[k], 1.0) * tranforms[j];
             }
         }
         //Update size of the total object
-        padding = padding * transorms.size();
+        nbVertices = nbVertices * tranforms.size();
     }
 }
