@@ -163,7 +163,7 @@ void Engine::cleanup() {
 
     //Destroy Buffers
     for (auto object : objectmanaged) {
-        vkDestroyBuffer(device, object.buffer, nullptr);
+        vkDestroyBuffer(device, object, nullptr);
     }
 
     for (auto vkmemory : vkmemorymanaged) {
@@ -423,7 +423,7 @@ void Engine::createLogicalDevice() {
         uint32_t family;
         uint32_t count;
 
-        bool operator==(RegroupedQueue e)
+        bool operator==(RegroupedQueue e) const
         {
             return this->family == e.family;
         }
@@ -470,7 +470,7 @@ void Engine::createLogicalDevice() {
 
     VkPhysicalDeviceFeatures deviceFeatures = {};
     deviceFeatures.samplerAnisotropy = VK_TRUE;
-//Enable the geometry shader features
+    //Enable the geometry shader features
     deviceFeatures.geometryShader = VK_TRUE;
 
     VkDeviceCreateInfo createInfo = {};
@@ -821,12 +821,12 @@ void Engine::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIn
     vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
 
-    for (auto object: objectmanaged) {
-        VkBuffer vertexBuffers[] = {object.buffer};
-        VkDeviceSize offsets[] = {0};
-        vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
+    for (auto object: drawablesObjects) {
 
-        vkCmdDraw(commandBuffer, object.nbVertices, 1, 0, 0);
+        VkDeviceSize offsets[] = {0};
+        vkCmdBindVertexBuffers(commandBuffer, 0, 1, object.bindings.data(), offsets);
+
+        vkCmdDraw(commandBuffer, object.nbvertices, 1, 0, 0);
     }
 
     vkCmdEndRenderPass(commandBuffer);
@@ -1101,7 +1101,7 @@ bool Engine::checkValidationLayerSupport() {
     return true;
 }
 
-void Engine::createBuffer(void *genineData, uint32_t size, uint32_t nbVertices, VkBufferUsageFlagBits flags,VkMemoryPropertyFlags properties)
+void* Engine::createBuffer(uint32_t size, VkBufferUsageFlagBits flags,VkMemoryPropertyFlags properties)
 {
     VkBufferCreateInfo bufferInfo{};
     bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -1115,12 +1115,10 @@ void Engine::createBuffer(void *genineData, uint32_t size, uint32_t nbVertices, 
         throw std::runtime_error("failed to create vertex buffer!");
     }
 
-
-
     VkMemoryRequirements memRequirements;
     vkGetBufferMemoryRequirements(device, buff, &memRequirements);
 
-    //Create a VkMemory by buffer (TODO Change this later)
+    //Create a VkMemory per buffer (TODO Change this later)
     VkMemoryAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
     allocInfo.allocationSize = memRequirements.size;
@@ -1129,26 +1127,32 @@ void Engine::createBuffer(void *genineData, uint32_t size, uint32_t nbVertices, 
     VkDeviceMemory mem;
 
     if (vkAllocateMemory(device, &allocInfo, nullptr, &mem) != VK_SUCCESS) {
-        throw std::runtime_error("failed to allocate vertex buffer memory!");
+        throw std::runtime_error("failed to allocate memory memory!");
     }
 
 
-
-    //Copy data to the memory
+    
     vkBindBufferMemory(device, buff, mem, 0);
 
     void* data;
+    
     vkMapMemory(device, mem, 0, bufferInfo.size, 0, &data);
-        memcpy(data, genineData, size);
-    vkUnmapMemory(device, mem);
 
-    ObjectInfo tmp{
-        buff,
-        nbVertices
-    };
-
-    objectmanaged.push_back(tmp);
+    objectmanaged.push_back(buff);
     vkmemorymanaged.push_back(mem);
+    vkbuffers.insert(std::pair<void*, VkBuffer>(data, buff));
+    return data;
+
+
+}
+
+void Engine::deleteBuffer(void* ptr)
+{
+    if(vkbuffers.at(ptr) != VK_NULL_HANDLE)
+    {
+        vkDestroyBuffer(device, vkbuffers.at(ptr), nullptr);
+        vkbuffers.erase(ptr);
+    }
 }
 
 uint32_t Engine::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties)
@@ -1164,5 +1168,25 @@ uint32_t Engine::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags prope
         }
     }
 
+
     throw std::runtime_error("failed to find suitable memory type!");
+}
+
+void Engine::addDrawableObject(std::vector<void*>& buffers, size_t nbVertices)
+{
+    std::vector<VkBuffer> bindings(buffers.size());
+
+    for (size_t i = 0; i < buffers.size(); ++i) {
+        auto vkbuff = vkbuffers.at(buffers[i]);
+        bindings[i] = vkbuff;
+    }
+
+    DrawableObject tmp = {
+            bindings, nbVertices
+    };
+
+    assert(!bindings.empty());
+
+    drawablesObjects.push_back(tmp);
+
 }

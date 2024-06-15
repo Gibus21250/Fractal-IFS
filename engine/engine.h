@@ -7,6 +7,7 @@
 
 #include <vulkan/vulkan.h>
 #include <GLFW/glfw3.h>
+#include <unordered_map>
 
 #include "vulkan/vulkan.hpp"
 
@@ -36,8 +37,6 @@ class Engine {
         std::vector<VkPresentModeKHR> presentModes;
     };
 
-
-
 public:
     void initEngine();
     void run();
@@ -48,11 +47,20 @@ public:
     VkQueue getComputequeue() const {return computeQueue;};
     void destroy();
 
-    void createBuffer(void *data, uint32_t size, uint32_t nbVertices, VkBufferUsageFlagBits flags,VkMemoryPropertyFlags properties);
+    void* createBuffer(uint32_t size, VkBufferUsageFlagBits flags, VkMemoryPropertyFlags properties);
+    void deleteBuffer(void* ptr);
 
-    struct ObjectInfo {
-        VkBuffer buffer;
-        uint32_t nbVertices;
+    /**
+     * Add a drawable element
+     * The first element of bindings is the vertex buffer, other are simple buffer
+     * @param bindings
+     * @param nbVertices
+     */
+    void addDrawableObject(std::vector<void*>& bindings, size_t nbVertices);
+
+    struct DrawableObject {
+        std::vector<VkBuffer> bindings;
+        size_t nbvertices;
     };
 
     struct Vertex {
@@ -96,8 +104,11 @@ private:
     VkQueue computeQueue;
     VkQueue transfertQueue;
 
-    std::vector<ObjectInfo> objectmanaged;
+    std::vector<DrawableObject> drawablesObjects;
+
+    std::vector<VkBuffer> objectmanaged;
     std::vector<VkDeviceMemory> vkmemorymanaged;
+    std::unordered_map<void*, VkBuffer> vkbuffers;
 
     VkSwapchainKHR swapChain;
     std::vector<VkImage> swapChainImages;
