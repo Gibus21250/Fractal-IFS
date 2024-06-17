@@ -1,0 +1,4 @@
+ajouter smaa
+activer conservative rasterization
+
+activer mouvement caméra + rotation + scale
