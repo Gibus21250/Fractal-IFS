@@ -1190,3 +1190,23 @@ void Engine::addDrawableObject(std::vector<void*>& buffers, size_t nbVertices)
     drawablesObjects.push_back(tmp);
 
 }
+
+void Engine::clearDrawableObjects()
+{
+
+    vkDeviceWaitIdle(device);
+    //Destroy Buffers
+    for (auto object : vkBuffermanaged) {
+        vkDestroyBuffer(device, object, nullptr);
+    }
+
+    for (auto vkmemory : vkmemorymanaged) {
+        vkFreeMemory(device, vkmemory, nullptr);
+    }
+
+    drawablesObjects.clear();
+    vkBuffermanaged.clear();
+    vkmemorymanaged.clear();
+    vkbuffersrawpointer.clear();
+
+}

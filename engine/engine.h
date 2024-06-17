@@ -57,6 +57,7 @@ public:
      * @param nbVertices
      */
     void addDrawableObject(std::vector<void*>& bindings, size_t nbVertices);
+    void clearDrawableObjects();
 
     struct DrawableObject {
         std::vector<VkBuffer> bindings;
