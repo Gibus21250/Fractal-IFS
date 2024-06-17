@@ -820,7 +820,7 @@ void Engine::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIn
     scissor.extent = swapChainExtent;
     vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
-
+    //For each objects
     for (auto object: drawablesObjects) {
 
         VkDeviceSize offsets[] = {0};
