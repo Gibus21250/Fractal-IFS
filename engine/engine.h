@@ -106,9 +106,9 @@ private:
 
     std::vector<DrawableObject> drawablesObjects;
 
-    std::vector<VkBuffer> objectmanaged;
+    std::vector<VkBuffer> vkBuffermanaged;
     std::vector<VkDeviceMemory> vkmemorymanaged;
-    std::unordered_map<void*, VkBuffer> vkbuffers;
+    std::unordered_map<void*, VkBuffer> vkbuffersrawpointer;
 
     VkSwapchainKHR swapChain;
     std::vector<VkImage> swapChainImages;
