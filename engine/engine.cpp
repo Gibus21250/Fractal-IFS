@@ -162,7 +162,7 @@ void Engine::cleanup() {
     vkDestroyCommandPool(device, commandPool, nullptr);
 
     //Destroy Buffers
-    for (auto object : objectmanaged) {
+    for (auto object : vkBuffermanaged) {
         vkDestroyBuffer(device, object, nullptr);
     }
 
