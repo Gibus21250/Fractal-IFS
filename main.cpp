@@ -9,7 +9,25 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
-void IFS(glm::vec2* object, size_t nb, std::vector<glm::mat3>& tranforms, uint32_t nbIteration);
+void IFS(glm::vec2* object, size_t nb, std::vector<glm::mat3>& transforms, uint32_t nbIteration);
+void drawIFS(std::vector<glm::vec2>& init, std::vector<glm::mat3>& transforms, uint32_t iter);
+
+void keyboard_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
+{
+    if (key == GLFW_KEY_KP_ADD && action == GLFW_PRESS)
+    {
+        iterations++;
+        e.clearDrawableObjects();
+        drawIFS(init, transforms, iterations);
+    }
+    else if(key == GLFW_KEY_KP_SUBTRACT && action == GLFW_PRESS)
+    {
+        if(iterations)
+            iterations--;
+        e.clearDrawableObjects();
+        drawIFS(init, transforms, iterations);
+    }
+}
 
 int main()
 {
@@ -17,22 +35,7 @@ int main()
     //Initialize small render engine
     Engine e;
     e.initEngine();
-
-    std::vector<glm::mat3> transforms =
-    {
-        glm::mat3(0.5, 0, 0,
-                  0, 0.5, -0.5,
-                  0, 0, 1),
-
-        glm::mat3(0.5, 0, -0.5,
-                  0, 0.5, 0.5,
-                  0, 0, 1),
-
-        glm::mat3(0.5, 0, 0.5,
-                  0, 0.5, 0.5,
-                  0, 0, 1),
-
-    };
+    glfwSetKeyCallback(e.getGLFWindow(), keyboard_callback);
 
     size_t nbIteration = 7, nbMaxPoints = 3;
 

@@ -1138,9 +1138,9 @@ void* Engine::createBuffer(uint32_t size, VkBufferUsageFlagBits flags,VkMemoryPr
     
     vkMapMemory(device, mem, 0, bufferInfo.size, 0, &data);
 
-    objectmanaged.push_back(buff);
+    vkBuffermanaged.push_back(buff);
     vkmemorymanaged.push_back(mem);
-    vkbuffers.insert(std::pair<void*, VkBuffer>(data, buff));
+    vkbuffersrawpointer.insert(std::pair<void*, VkBuffer>(data, buff));
     return data;
 
 
@@ -1148,10 +1148,10 @@ void* Engine::createBuffer(uint32_t size, VkBufferUsageFlagBits flags,VkMemoryPr
 
 void Engine::deleteBuffer(void* ptr)
 {
-    if(vkbuffers.at(ptr) != VK_NULL_HANDLE)
+    if(vkbuffersrawpointer.at(ptr) != VK_NULL_HANDLE)
     {
-        vkDestroyBuffer(device, vkbuffers.at(ptr), nullptr);
-        vkbuffers.erase(ptr);
+        vkDestroyBuffer(device, vkbuffersrawpointer.at(ptr), nullptr);
+        vkbuffersrawpointer.erase(ptr);
     }
 }
 
@@ -1177,7 +1177,7 @@ void Engine::addDrawableObject(std::vector<void*>& buffers, size_t nbVertices)
     std::vector<VkBuffer> bindings(buffers.size());
 
     for (size_t i = 0; i < buffers.size(); ++i) {
-        auto vkbuff = vkbuffers.at(buffers[i]);
+        auto vkbuff = vkbuffersrawpointer.at(buffers[i]);
         bindings[i] = vkbuff;
     }
 
