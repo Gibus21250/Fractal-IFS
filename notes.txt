@@ -1,4 +1,4 @@
 ajouter smaa
-activer conservative rasterization
+activer conservative rasterization OK
 
 activer mouvement caméra + rotation + scale
