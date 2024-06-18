@@ -14,10 +14,11 @@ size_t iterations = 0;
 Engine e;
 
 std::vector<glm::vec2> init = {
-        glm::vec2(0.0f, -1.0f),
+        glm::vec2(0, -1.0),
         glm::vec2(-1.0f, 1.0f),
         glm::vec2(1.0f, 1.0f)
 };
+
 
 std::vector<glm::mat3> transforms =
         {
@@ -35,6 +36,23 @@ std::vector<glm::mat3> transforms =
 
         };
 
+/*
+std::vector<glm::mat3> transforms =
+        {
+                glm::mat3(0.5f, 0, 0,
+                          0, 0.5f, 0,
+                          0, 0, 1),
+
+                glm::mat3(0.5, -0.5, 0.5f,
+                          0.5, 0.5, 0,
+                          0, 0, 1),
+
+                glm::mat3(0.5, 0.5, 0,
+                          -0.5, 0.5, 0.5,
+                          0, 0, 1)
+
+        };*/
+
 void IFS(glm::vec2* object, size_t nb, std::vector<glm::mat3>& transforms, uint32_t nbIteration);
 void drawIFS(std::vector<glm::vec2>& init, std::vector<glm::mat3>& transforms, uint32_t iter);
 
@@ -49,9 +67,15 @@ void keyboard_callback(GLFWwindow* window, int key, int scancode, int action, in
     else if(key == GLFW_KEY_KP_SUBTRACT && action == GLFW_PRESS)
     {
         if(iterations)
+        {
             iterations--;
-        e.clearDrawableObjects();
-        drawIFS(init, transforms, iterations);
+            e.clearDrawableObjects();
+            drawIFS(init, transforms, iterations);
+        }
+    }
+    else if(key == GLFW_KEY_R && action == GLFW_PRESS)
+    {
+        e.switchConservativeRaster();
     }
 }
 

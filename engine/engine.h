@@ -90,9 +90,15 @@ public:
     };
 
     GLFWwindow* getGLFWindow(){return window;};
-    void setKeyboardCallBack(void (*key_callback) (GLFWwindow* window, int key, int scancode, int action, int mods));
+
+    //Rendering features
+    void switchConservativeRaster();
 
 private:
+
+    //Rendering features
+    bool conservativeRasterizer = false;
+
     GLFWwindow* window;
 
     VkInstance instance;
@@ -106,10 +112,9 @@ private:
     VkQueue graphicsQueue;
     VkQueue presentQueue;
     VkQueue computeQueue;
-    VkQueue transfertQueue;
+    VkQueue transferQueue;
 
     std::vector<DrawableObject> drawablesObjects;
-
     std::vector<VkBuffer> vkBuffermanaged;
     std::vector<VkDeviceMemory> vkmemorymanaged;
     std::unordered_map<void*, VkBuffer> vkbuffersrawpointer;
@@ -133,14 +138,12 @@ private:
     std::vector<VkFence> inFlightFences;
     uint32_t currentFrame = 0;
 
-    //------------------------------------------------------------------
-
     /**
      * @brief Infos of a queue.
      */
     struct QueueInfo {
         uint32_t family;
-        uint32_t indice;
+        uint32_t indices;
     };
 
     /**

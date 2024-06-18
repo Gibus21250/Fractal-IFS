@@ -232,7 +232,6 @@ void Engine::createInstance() {
         createInfo.pNext = (VkDebugUtilsMessengerCreateInfoEXT*) &debugCreateInfo;
     } else {
         createInfo.enabledLayerCount = 0;
-
         createInfo.pNext = nullptr;
     }
 
@@ -289,7 +288,7 @@ Engine::QueuesNeeded Engine::getQueuesNeeded(VkPhysicalDevice device)
         counters[i].max = queueFamilies[i].queueCount-1; //exemple: 2 queueCount mean 0 -> 1
     }
     //NOTES: Internal test:
-    //It is naturally preferable to use the same queue family AND indice for the main graphics and present queue (+80%perf + overlay doesnt glitch)
+    //It is naturally preferable to use the same queue family AND indices for the main graphics and present queue (+80%perf + overlay doesnt glitch)
 
 
     int i = 0; //Indice of the current queue
@@ -300,7 +299,7 @@ Engine::QueuesNeeded Engine::getQueuesNeeded(VkPhysicalDevice device)
         if (!indices.graphicsHasValue && queueFamily.queueCount > 0 && queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT)
         {
             indices.graphics.family = i;
-            indices.graphics.indice = counters[i].current++;
+            indices.graphics.indices = counters[i].current++;
             indices.graphicsHasValue = true;
         }
 
@@ -312,21 +311,21 @@ Engine::QueuesNeeded Engine::getQueuesNeeded(VkPhysicalDevice device)
         {
 
             indices.present.family = i;
-            //If present queue == graphic queue, take the same indice as graphic to improve performance
+            //If present queue == graphic queue, take the same indices as graphic to improve performance
             if(indices.graphics.family == i)
-                indices.present.indice = indices.graphics.indice;
+                indices.present.indices = indices.graphics.indices;
             else
             {
                 if(counters[i].current < counters[i].max)
-                    indices.present.indice = counters[i].current++;
+                    indices.present.indices = counters[i].current++;
                 else
-                    indices.present.indice = counters[i].current;
+                    indices.present.indices = counters[i].current;
             }
 
             indices.presentHasValue = true;
         }
 
-        //Test: get an different indice of this family queue for Present operations
+        //Test: get an different indices of this family queue for Present operations
         if (indices.graphicsHasValue && indices.presentHasValue) break;
         i++;
     }
@@ -343,9 +342,9 @@ Engine::QueuesNeeded Engine::getQueuesNeeded(VkPhysicalDevice device)
             }
             indices.transfert.family = i;
             if (counters[i].current < counters[i].max)
-                indices.transfert.indice = counters[i].current++;
+                indices.transfert.indices = counters[i].current++;
             else
-                indices.transfert.indice = counters[i].current-1;
+                indices.transfert.indices = counters[i].current - 1;
 
             indices.transfertHasValue = true;
 
@@ -367,9 +366,9 @@ Engine::QueuesNeeded Engine::getQueuesNeeded(VkPhysicalDevice device)
             indices.compute.family = i;
 
             if (counters[i].current < counters[i].max)
-                indices.compute.indice = counters[i].current++;
+                indices.compute.indices = counters[i].current++;
             else
-                indices.compute.indice = counters[i].current-1;
+                indices.compute.indices = counters[i].current - 1;
 
             indices.computeHasValue = true;
 
@@ -436,7 +435,7 @@ void Engine::createLogicalDevice() {
 
     for (auto& queueFamily : queues)
     {
-        auto tmp = RegroupedQueue{ queueFamily.family, queueFamily.indice };
+        auto tmp = RegroupedQueue{ queueFamily.family, queueFamily.indices };
         auto it = packed.begin();
 
         for (; it != packed.end(); ++it)
@@ -445,11 +444,11 @@ void Engine::createLogicalDevice() {
 
         if (it == packed.end())
         {
-            packed.push_back(RegroupedQueue{ queueFamily.family,  queueFamily.indice + 1});
+            packed.push_back(RegroupedQueue{ queueFamily.family, queueFamily.indices + 1});
         }
         else
         {
-            it->count = queueFamily.indice + 1;
+            it->count = queueFamily.indices + 1;
             if (it->count > max) max = it->count;
         }
     }
@@ -507,10 +506,10 @@ void Engine::createLogicalDevice() {
     }
 
     //family, index of the queue (gpu can have multiple index of the same type of queue)
-    vkGetDeviceQueue(device, indices.graphics.family, indices.graphics.indice, &graphicsQueue);
-    vkGetDeviceQueue(device, indices.present.family, indices.present.indice, &presentQueue);
-    vkGetDeviceQueue(device, indices.transfert.family, indices.transfert.indice, &transfertQueue);
-    vkGetDeviceQueue(device, indices.compute.family, indices.compute.indice, &computeQueue);
+    vkGetDeviceQueue(device, indices.graphics.family, indices.graphics.indices, &graphicsQueue);
+    vkGetDeviceQueue(device, indices.present.family, indices.present.indices, &presentQueue);
+    vkGetDeviceQueue(device, indices.transfert.family, indices.transfert.indices, &transferQueue);
+    vkGetDeviceQueue(device, indices.compute.family, indices.compute.indices, &computeQueue);
 }
 
 void Engine::createSwapChain() {
@@ -701,7 +700,8 @@ void Engine::createGraphicsPipeline() {
     conservativeRasterStateCI.extraPrimitiveOverestimationSize = 0;
 
     // Conservative rasterization state has to be chained into the pipeline rasterization state create info structure
-    rasterizer.pNext = &conservativeRasterStateCI;
+    if(conservativeRasterizer)
+        rasterizer.pNext = &conservativeRasterStateCI;
 
     VkPipelineMultisampleStateCreateInfo multisampling{};
     multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
@@ -1244,4 +1244,13 @@ void Engine::clearDrawableObjects()
     vkmemorymanaged.clear();
     vkbuffersrawpointer.clear();
 
+}
+
+void Engine::switchConservativeRaster()
+{
+    conservativeRasterizer = !conservativeRasterizer;
+    vkDeviceWaitIdle(device);
+    vkDestroyPipeline(device, graphicsPipeline, nullptr);
+    vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
+    createGraphicsPipeline();
 }
