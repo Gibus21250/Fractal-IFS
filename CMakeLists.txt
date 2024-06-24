@@ -10,17 +10,17 @@ add_subdirectory(third-party/kompute)
 #sur MCVS Kompute utilise un truc deprecié qui fait une erreur,
 target_compile_definitions(kompute PRIVATE _CRT_SECURE_NO_WARNINGS=1)
 
-include_directories(third-party/glm/glm third-party/glfw/include third-party/kompute/src/include Vulkan::Headers)
+include_directories(${CMAKE_SOURCE_DIR}/third-party/glm/glm ${CMAKE_SOURCE_DIR}/third-party/glfw/include ${CMAKE_SOURCE_DIR}/third-party/kompute/src/include Vulkan::Headers)
 
 find_package(Vulkan REQUIRED)
-
-
 
 add_executable(${PROJECT_NAME} main.cpp
         engine/engine.cpp
         engine/engine.h
         engine/utils.cpp
-        engine/utils.h)
+        engine/utils.h
+        engine/camera.cpp
+        engine/camera.h)
 target_link_libraries(${PROJECT_NAME} glfw kompute::kompute Vulkan::Vulkan)
 
 add_subdirectory(shaders/)
