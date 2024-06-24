@@ -14,7 +14,7 @@ size_t iterations = 0;
 Engine e;
 
 std::vector<glm::vec2> init = {
-        glm::vec2(0, -1.0),
+        glm::vec2(0.0, -1.0),
         glm::vec2(-1.0f, 1.0f),
         glm::vec2(1.0f, 1.0f)
 };
@@ -36,8 +36,7 @@ std::vector<glm::mat3> transforms =
 
         };
 
-/*
-std::vector<glm::mat3> transforms =
+/*std::vector<glm::mat3> transforms =
         {
                 glm::mat3(0.5f, 0, 0,
                           0, 0.5f, 0,
