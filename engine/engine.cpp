@@ -7,12 +7,12 @@
 #include <algorithm>
 #include <vector>
 #include <cstring>
-#include <cstdlib>
 #include <cstdint>
 #include <limits>
 #include <optional>
 #include <set>
 #include <list>
+#include <glm/gtx/transform.hpp>
 
 #include "engine.h"
 #include "utils.h"
@@ -677,7 +677,7 @@ void Engine::createGraphicsPipeline() {
     rasterizer.rasterizerDiscardEnable = VK_FALSE;
     rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
     rasterizer.lineWidth = 1.0f;
-    rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
+    rasterizer.cullMode = VK_CULL_MODE_NONE;
     rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
     rasterizer.depthBiasEnable = VK_FALSE;
 
@@ -736,6 +736,16 @@ void Engine::createGraphicsPipeline() {
     pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     pipelineLayoutInfo.setLayoutCount = 0;
     pipelineLayoutInfo.pushConstantRangeCount = 0;
+
+    // Push Constant
+
+    VkPushConstantRange push_constant;
+    push_constant.offset = 0;
+    push_constant.size = sizeof(MeshPushConstants);
+    push_constant.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
+    pipelineLayoutInfo.pPushConstantRanges = &push_constant;
+    pipelineLayoutInfo.pushConstantRangeCount = 1;
 
     if (vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS) {
         throw std::runtime_error("failed to create pipeline layout!");
@@ -852,11 +862,19 @@ void Engine::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIn
     scissor.extent = swapChainExtent;
     vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
+    //calculate final mesh matrix
+    glm::mat4 mesh_matrix = camera.getVPMatrix() * glm::mat4(1);
+
+    MeshPushConstants constants{};
+    constants.render_matrix = mesh_matrix;
     //For each objects
     for (auto object: drawablesObjects) {
 
         VkDeviceSize offsets[] = {0};
         vkCmdBindVertexBuffers(commandBuffer, 0, 1, object.bindings.data(), offsets);
+
+        //upload the matrix to the GPU via push constants
+        vkCmdPushConstants(commandBuffer, pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(MeshPushConstants), &constants);
 
         vkCmdDraw(commandBuffer, object.nbvertices, 1, 0, 0);
     }
@@ -1253,4 +1271,13 @@ void Engine::switchConservativeRaster()
     vkDestroyPipeline(device, graphicsPipeline, nullptr);
     vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
     createGraphicsPipeline();
+}
+
+void Engine::setCamera(Camera &cam)
+{
+    this->camera = cam;
+}
+
+const Camera &Engine::getCamera() const {
+    return this->camera;
 }

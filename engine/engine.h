@@ -13,6 +13,8 @@
 
 #include <glm/glm.hpp>
 
+#include "camera.h"
+
 
 class Engine {
 
@@ -37,7 +39,16 @@ class Engine {
         std::vector<VkPresentModeKHR> presentModes;
     };
 
+    struct MeshPushConstants {
+        glm::vec4 data;
+        glm::mat4 render_matrix;
+    };
+
 public:
+
+    void setCamera(Camera &cam);
+    const Camera &getCamera() const;
+
     void initEngine();
     void run();
     bool framebufferResized = false;
@@ -98,6 +109,9 @@ private:
 
     //Rendering features
     bool conservativeRasterizer = false;
+
+    Camera camera{};
+    uint32_t framenumber = 0;
 
     GLFWwindow* window;
 
