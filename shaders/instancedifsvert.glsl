@@ -3,33 +3,34 @@
 layout (location = 0) in vec2 inPosition;
 layout (location = 0) out vec3 fragColor;
 
-layout (binding = 0) uniform UniformBufferObject {
-    mat4 transforms[];  //maxUniformBufferRange: 65536
-} ubo;
+layout (binding = 0) buffer UniformBufferObject
+{
+    mat4 t[];  //maxUniformBufferRange: 65536
+} transforms;
 
 layout (push_constant) uniform constants
 {
-    uint32_t nbIteration;
-    uint32_t maxInstance;
-    uint32_t nbTransformation;
-    uint32_t padding;
+    uint nbIteration;
+    uint maxInstance;
+    uint nbTransformation;
+    uint padding;
     mat4 render_matrix;
 } PushConstants;
 
 void main()
 {
-    float32_t value = float32_t(gl_InstanceIndex) / PushConstants.maxInstance - 1;
-    float32_t segmentSize = 1.0f / PushConstants.nbTransformation;
+    float value = float(gl_InstanceIndex) / PushConstants.maxInstance - 1;
+    float segmentSize = 1.0f / PushConstants.nbTransformation;
 
     mat4 model = mat4(1);
     for (int i = 0; i < PushConstants.nbIteration; i++)
     {
         //Get the number of the transfom to apply
-        uint32_t no = floor(value * PushConstants.nbTransformation);
-        model = transform[no] * model;
+        uint no = uint(floor(value * PushConstants.nbTransformation));
+        model = transforms.t[no] * model;
 
         //Remap the value between 0 and 1 for the next iteration
-        float32_t lower = no * segmentSize;
+        float lower = no * segmentSize;
         value = (value - lower) / segmentSize;
     }
 
