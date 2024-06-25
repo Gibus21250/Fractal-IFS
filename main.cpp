@@ -36,22 +36,6 @@ std::vector<glm::mat3> transforms =
 
         };
 
-/*std::vector<glm::mat3> transforms =
-        {
-                glm::mat3(0.5f, 0, 0,
-                          0, 0.5f, 0,
-                          0, 0, 1),
-
-                glm::mat3(0.5, -0.5, 0.5f,
-                          0.5, 0.5, 0,
-                          0, 0, 1),
-
-                glm::mat3(0.5, 0.5, 0,
-                          -0.5, 0.5, 0.5,
-                          0, 0, 1)
-
-        };*/
-
 void IFS(glm::vec2* object, size_t nb, std::vector<glm::mat3>& transforms, uint32_t nbIteration);
 void drawIFS(std::vector<glm::vec2>& init, std::vector<glm::mat3>& transforms, uint32_t iter);
 
