@@ -211,13 +211,13 @@ private:
     VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats);
     VkPresentModeKHR chooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes);
     VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities);
-    SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice device);
-    bool isDeviceSuitable(VkPhysicalDevice device);
-    bool checkDeviceExtensionSupport(VkPhysicalDevice device);
-    QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device);
-    std::vector<const char*> getRequiredExtensions();
+    SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice pDeviceT);
+    bool isDeviceSuitable(VkPhysicalDevice pDeviceT);
+    bool checkDeviceExtensionSupport(VkPhysicalDevice pDeviceT);
+    QueueFamilyIndices findQueueFamilies(VkPhysicalDevice pDeviceT);
+    static std::vector<const char*> getRequiredExtensions();
 
-    bool checkValidationLayerSupport();
+    static bool checkValidationLayerSupport();
     uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
 };
 
