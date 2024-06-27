@@ -4,10 +4,17 @@ layout(location = 0) in vec2 inPosition;
 
 layout(location = 0) out vec3 fragColor;
 
-//push constants block
-layout(push_constant) uniform constants
+layout (binding = 0) buffer UniformBufferObject
 {
-    vec4 data;
+    mat4 t[3];
+} transforms;
+
+layout (push_constant) uniform constants
+{
+    uint nbIteration;
+    uint maxInstance;
+    uint nbTransformation;
+    uint padding;
     mat4 render_matrix;
 } PushConstants;
 
