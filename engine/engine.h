@@ -40,7 +40,10 @@ class Engine {
     };
 
     struct MeshPushConstants {
-        glm::vec4 data;
+        glm::uint nbIteration;
+        glm::uint maxInstance;
+        glm::uint nbTransformation;
+        glm::uint padding;
         glm::mat4 render_matrix;
     };
 
@@ -67,12 +70,13 @@ public:
      * @param bindings
      * @param nbVertices
      */
-    void addDrawableObject(std::vector<void*>& bindings, size_t nbVertices);
+    void addDrawableObject(std::vector<void*>& buffers, size_t nbVertices, uint32_t nbInstance = 1);
     void clearDrawableObjects();
 
     struct DrawableObject {
         std::vector<VkBuffer> bindings;
         size_t nbvertices;
+        uint32_t nbInstance;
     };
 
     struct Vertex {
@@ -104,6 +108,8 @@ public:
 
     //Rendering features
     void switchConservativeRaster();
+
+    MeshPushConstants pushConstants{};
 
 private:
 
@@ -141,6 +147,9 @@ private:
     std::vector<VkFramebuffer> swapChainFramebuffers;
 
     VkRenderPass renderPass;
+    VkDescriptorSetLayout descriptorSetLayout;
+    VkDescriptorPool descriptorPool;
+    VkDescriptorSet descriptorSet;
     VkPipelineLayout pipelineLayout;
     VkPipeline graphicsPipeline;
 
@@ -189,8 +198,11 @@ private:
 
     void createImageViews();
     void createRenderPass();
+    void createDescriptorSetLayout();
     void createGraphicsPipeline();
     void createFramebuffers();
+    void createDescriptorPool();
+    void createDescriptorSets();
     void createCommandPool();
     void createCommandBuffers();
     void createSyncObjects();

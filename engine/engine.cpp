@@ -117,6 +117,9 @@ void Engine::initVulkan() {
     createSwapChain();
     createImageViews();
     createRenderPass();
+    createDescriptorSetLayout();
+    createDescriptorPool();
+    createDescriptorSets();
     createGraphicsPipeline();
     createFramebuffers();
     createCommandPool();
@@ -147,6 +150,10 @@ void Engine::cleanupSwapChain() {
 
 void Engine::cleanup() {
     cleanupSwapChain();
+
+    vkDestroyDescriptorPool(device, descriptorPool, nullptr);
+
+    vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
 
     vkDestroyPipeline(device, graphicsPipeline, nullptr);
     vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
@@ -630,7 +637,7 @@ void Engine::createRenderPass() {
 }
 
 void Engine::createGraphicsPipeline() {
-    auto vertShaderCode = Utils::readFile("shaders/vert.spv");
+    auto vertShaderCode = Utils::readFile("shaders/instancedifsvert.spv");
     auto fragShaderCode = Utils::readFile("shaders/frag.spv");
 
     VkShaderModule vertShaderModule = createShaderModule(vertShaderCode);
@@ -736,8 +743,11 @@ void Engine::createGraphicsPipeline() {
     pipelineLayoutInfo.setLayoutCount = 0;
     pipelineLayoutInfo.pushConstantRangeCount = 0;
 
-    // Push Constant
+    //Bindings
+    pipelineLayoutInfo.setLayoutCount = 1;
+    pipelineLayoutInfo.pSetLayouts = &descriptorSetLayout;
 
+    // Push Constant
     VkPushConstantRange push_constant;
     push_constant.offset = 0;
     push_constant.size = sizeof(MeshPushConstants);
@@ -864,18 +874,22 @@ void Engine::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIn
     //calculate final mesh matrix
     glm::mat4 mesh_matrix = camera.getVPMatrix() * glm::mat4(1);
 
-    MeshPushConstants constants{};
-    constants.render_matrix = mesh_matrix;
+    pushConstants.render_matrix = mesh_matrix;
     //For each objects
     for (auto object: drawablesObjects) {
 
         VkDeviceSize offsets[] = {0};
         vkCmdBindVertexBuffers(commandBuffer, 0, 1, object.bindings.data(), offsets);
 
-        //upload the matrix to the GPU via push constants
-        vkCmdPushConstants(commandBuffer, pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(MeshPushConstants), &constants);
+        if(object.bindings.size() > 1)
+        {
+            vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSet, 0, nullptr);
+        }
 
-        vkCmdDraw(commandBuffer, object.nbvertices, 1, 0, 0);
+        //upload the matrix to the GPU via push constants
+        vkCmdPushConstants(commandBuffer, pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(MeshPushConstants), &pushConstants);
+
+        vkCmdDraw(commandBuffer, object.nbvertices, object.nbInstance, 0, 0);
     }
 
     vkCmdEndRenderPass(commandBuffer);
@@ -1224,7 +1238,7 @@ uint32_t Engine::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags prope
     throw std::runtime_error("failed to find suitable memory type!");
 }
 
-void Engine::addDrawableObject(std::vector<void*>& buffers, size_t nbVertices)
+void Engine::addDrawableObject(std::vector<void*>& buffers, size_t nbVertices, uint32_t nbInstance)
 {
     std::vector<VkBuffer> bindings(buffers.size());
 
@@ -1233,14 +1247,35 @@ void Engine::addDrawableObject(std::vector<void*>& buffers, size_t nbVertices)
         bindings[i] = vkbuff;
     }
 
-    DrawableObject tmp = {
-            bindings, nbVertices
-    };
-
     assert(!bindings.empty());
 
-    drawablesObjects.push_back(tmp);
+    DrawableObject tmp = {
+            bindings, nbVertices, nbInstance
+    };
 
+    //Si on a d'autre bindings que le vertexbuffer, c'est qu'on fait notre draw instanced
+    if(bindings.size() > 1)
+    {
+        VkDescriptorBufferInfo bufferInfo{};
+        bufferInfo.buffer = bindings[1];
+        bufferInfo.offset = 0;
+        bufferInfo.range = sizeof(glm::mat3) * 3;
+
+        VkWriteDescriptorSet descriptorWrite{};
+        descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptorWrite.dstSet = descriptorSet;
+        descriptorWrite.dstBinding = 0;
+        descriptorWrite.dstArrayElement = 0;
+        descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        descriptorWrite.descriptorCount = 1;
+        descriptorWrite.pBufferInfo = &bufferInfo;
+        descriptorWrite.pImageInfo = nullptr; // Optional
+        descriptorWrite.pTexelBufferView = nullptr; // Optional
+
+        vkUpdateDescriptorSets(device, 1, &descriptorWrite, 0, nullptr);
+
+    }
+    drawablesObjects.push_back(tmp);
 }
 
 void Engine::clearDrawableObjects()
@@ -1279,4 +1314,55 @@ void Engine::setCamera(Camera &cam)
 
 const Camera &Engine::getCamera() const {
     return this->camera;
+}
+
+void Engine::createDescriptorSetLayout()
+{
+    VkDescriptorSetLayoutBinding uboLayoutBinding{};
+    uboLayoutBinding.binding = 0;
+    uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    uboLayoutBinding.descriptorCount = 1;
+    uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
+    VkDescriptorSetLayoutCreateInfo layoutInfo{};
+    layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    layoutInfo.bindingCount = 1;
+    layoutInfo.pBindings = &uboLayoutBinding;
+
+    if (vkCreateDescriptorSetLayout(device, &layoutInfo, nullptr, &descriptorSetLayout) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create descriptor set layout!");
+    }
+}
+
+void Engine::createDescriptorPool()
+{
+    VkDescriptorPoolSize poolSize{};
+    poolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    poolSize.descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+
+    VkDescriptorPoolCreateInfo poolInfo{};
+    poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    poolInfo.poolSizeCount = 1;
+    poolInfo.pPoolSizes = &poolSize;
+
+    poolInfo.maxSets = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+
+    if (vkCreateDescriptorPool(device, &poolInfo, nullptr, &descriptorPool) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create descriptor pool!");
+    }
+}
+
+void Engine::createDescriptorSets()
+{
+    std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, descriptorSetLayout);
+    VkDescriptorSetAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    allocInfo.descriptorPool = descriptorPool;
+    allocInfo.descriptorSetCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+    allocInfo.pSetLayouts = layouts.data();
+
+    if (vkAllocateDescriptorSets(device, &allocInfo, &descriptorSet) != VK_SUCCESS) {
+        throw std::runtime_error("failed to allocate descriptor sets!");
+    }
+
 }
