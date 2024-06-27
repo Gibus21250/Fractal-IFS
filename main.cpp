@@ -5,7 +5,6 @@
 #include <kompute/Kompute.hpp>
 
 #include "engine/engine.h"
-
 #include <glm/glm.hpp>
 
 #include <GLFW/glfw3.h>
@@ -20,19 +19,22 @@ std::vector<glm::vec2> g_init = {
 };
 
 
-std::vector<glm::mat3> g_transforms =
+std::vector<glm::mat4> g_transforms =
         {
-                glm::mat3(0.5, 0, 0,
-                          0, 0.5, -0.5,
-                          0, 0, 1),
+                glm::mat4(0.5, 0, 0, 0,
+                          0, 0.5, 0, -0.5,
+                          0, 0, 1, 0,
+                          0, 0, 0, 1),
 
-                glm::mat3(0.5, 0, -0.5,
-                          0, 0.5, 0.5,
-                          0, 0, 1),
+                glm::mat4(0.5, 0, 0,-0.5,
+                          0, 0.5, 0,0.5,
+                          0, 0, 1, 0,
+                          0, 0, 0, 1),
 
-                glm::mat3(0.5, 0, 0.5,
-                          0, 0.5, 0.5,
-                          0, 0, 1),
+                glm::mat4(0.5, 0, 0, 0.5,
+                          0, 0.5, 0, 0.5,
+                          0, 0, 1, 0,
+                          0, 0, 0, 1)
 
         };
 
@@ -40,9 +42,9 @@ bool g_CPU = false;
 
 void* g_uniformBuffer = nullptr;
 
-void IFS(glm::vec2* object, size_t nb, std::vector<glm::mat3>& transforms, uint32_t nbIteration);
-void computeIFS_CPU(std::vector<glm::vec2>& init, std::vector<glm::mat3>& transforms, uint32_t iter);
-void computeIFS_GPU(std::vector<glm::vec2>& init, std::vector<glm::mat3>& transforms, uint32_t iter);
+void IFS(glm::vec2* object, size_t nb, std::vector<glm::mat4>& transforms, uint32_t nbIteration);
+void computeIFS_CPU(std::vector<glm::vec2>& init, std::vector<glm::mat4>& transforms, uint32_t iter);
+void computeIFS_GPU(std::vector<glm::vec2>& init, std::vector<glm::mat4>& transforms, uint32_t iter);
 
 void keyboard_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
@@ -104,7 +106,7 @@ int main()
     g_engine.destroy();
 }
 
-void computeIFS_CPU(std::vector<glm::vec2>& init, std::vector<glm::mat3>& transforms, uint32_t iter)
+void computeIFS_CPU(std::vector<glm::vec2>& init, std::vector<glm::mat4> &transforms, uint32_t iter)
 {
     size_t nbMaxPoints = init.size();
     for (int i = 0; i < iter; ++i) {
@@ -129,7 +131,7 @@ void computeIFS_CPU(std::vector<glm::vec2>& init, std::vector<glm::mat3>& transf
 }
 
 //Transform are 3D matrices bc of heterogeneous coord
-void IFS(glm::vec2* object, size_t nbVertices, std::vector<glm::mat3>& trans, uint32_t nbIteration)
+void IFS(glm::vec2* object, size_t nbVertices, std::vector<glm::mat4>& trans, uint32_t nbIteration)
 {
     //For each iteration
     for (int i = 0; i < nbIteration; ++i)
@@ -141,7 +143,7 @@ void IFS(glm::vec2* object, size_t nbVertices, std::vector<glm::mat3>& trans, ui
             //We apply tranform for each point
             for (size_t k = 0; k < nbVertices; ++k)
             {
-                object[((trans.size() - 1 - j)) * nbVertices + k] = glm::vec3(object[k], 1.0) * trans[j];
+                object[((trans.size() - 1 - j)) * nbVertices + k] = glm::vec4(object[k], 1.0, 1.0) * trans[j];
             }
         }
         //Update size of the total object
@@ -149,23 +151,23 @@ void IFS(glm::vec2* object, size_t nbVertices, std::vector<glm::mat3>& trans, ui
     }
 }
 
-void computeIFS_GPU(std::vector<glm::vec2>& init, std::vector<glm::mat3>& transforms, uint32_t iter)
+void computeIFS_GPU(std::vector<glm::vec2>& init, std::vector<glm::mat4>& transforms, uint32_t iter)
 {
     //Si l'uniform buffer n'a pas été initialisé
     if(g_uniformBuffer == nullptr)
-        g_uniformBuffer = g_engine.createBuffer(3 * sizeof(glm::mat4), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+        g_uniformBuffer = g_engine.createBuffer(transforms.size() * sizeof(glm::mat4), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
     //On met à jour l'uniformbuffer des transforms
-    memcpy(g_uniformBuffer, transforms.data(), transforms.size() * sizeof(glm::mat3));
+    memcpy(g_uniformBuffer, transforms.data(), transforms.size() * sizeof(glm::mat4));
 
     //On met à jour le pushconstant
     g_engine.pushConstants.nbTransformation = transforms.size();
     g_engine.pushConstants.nbIteration = iter;
-    size_t nbMaxInstance = 1;
+    size_t nbInstance = 1;
     for (int i = 0; i < iter; ++i) {
-        nbMaxInstance *= transforms.size();
+        nbInstance *= transforms.size();
     }
-    g_engine.pushConstants.maxInstance = nbMaxInstance;
+    g_engine.pushConstants.maxInstance = nbInstance;
 
     //On crée un vertexBuffer de l'élément initial
     auto* buff = (glm::vec2*) g_engine.createBuffer(init.size() * sizeof(glm::vec2), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
@@ -174,5 +176,5 @@ void computeIFS_GPU(std::vector<glm::vec2>& init, std::vector<glm::mat3>& transf
     std::vector<void*> res = {buff, g_uniformBuffer};
 
     //On ajoute un objet drawable de l'élément de base, mais nbInstances fois
-    g_engine.addDrawableObject(res, 3, nbMaxInstance);
+    g_engine.addDrawableObject(res, 3, nbInstance);
 }
