@@ -872,7 +872,7 @@ void Engine::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIn
     vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
     //calculate final mesh matrix
-    glm::mat4 mesh_matrix = camera.getVPMatrix() * glm::mat4(1);
+    glm::mat4 mesh_matrix = camera.getVPMatrix();
 
     pushConstants.render_matrix = mesh_matrix;
     //For each objects
@@ -1259,7 +1259,7 @@ void Engine::addDrawableObject(std::vector<void*>& buffers, size_t nbVertices, u
         VkDescriptorBufferInfo bufferInfo{};
         bufferInfo.buffer = bindings[1];
         bufferInfo.offset = 0;
-        bufferInfo.range = sizeof(glm::mat3) * 3;
+        bufferInfo.range = sizeof(glm::mat4) * 3;
 
         VkWriteDescriptorSet descriptorWrite{};
         descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
