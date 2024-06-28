@@ -120,7 +120,6 @@ void Engine::initVulkan() {
     createDescriptorSetLayout();
     createDescriptorPool();
     createDescriptorSets();
-    createGraphicsPipeline();
     createFramebuffers();
     createCommandPool();
     createCommandBuffers();
@@ -336,10 +335,10 @@ Engine::QueuesNeeded Engine::getQueuesNeeded(VkPhysicalDevice device)
         i++;
     }
 
-    //Now search for a transfert queue, preferable dedicated
-    for (int i{ 0 }; i < queueFamilies.size(); ++i)
+    //Now search for a transfer queue, preferable dedicated
+    for (i = 0; i < queueFamilies.size(); ++i)
     {
-        if (queueFamilies[i].queueCount > 0  //Queue avalaible
+        if (queueFamilies[i].queueCount > 0  //Queue available
             && queueFamilies[i].queueFlags & VK_QUEUE_TRANSFER_BIT)  //And support compute
         {
             if (indices.transfertHasValue)
@@ -360,7 +359,7 @@ Engine::QueuesNeeded Engine::getQueuesNeeded(VkPhysicalDevice device)
     }
 
     //Now search for a compute queue, preferable dedicated
-    for (int i{ 0 }; i < queueFamilies.size(); ++i)
+    for (i = 0; i < queueFamilies.size(); ++i)
     {
         if (queueFamilies[i].queueCount > 0  //Queue avalaible
             && queueFamilies[i].queueFlags & VK_QUEUE_COMPUTE_BIT)  //And support compute
@@ -637,8 +636,8 @@ void Engine::createRenderPass() {
 }
 
 void Engine::createGraphicsPipeline() {
-    auto vertShaderCode = Utils::readFile("shaders/instancedifsvert.spv");
-    auto fragShaderCode = Utils::readFile("shaders/frag.spv");
+    auto vertShaderCode = Utils::readFile(lastVertexShader);
+    auto fragShaderCode = Utils::readFile(lastFragmentShader);
 
     VkShaderModule vertShaderModule = createShaderModule(vertShaderCode);
     VkShaderModule fragShaderModule = createShaderModule(fragShaderCode);
@@ -1012,7 +1011,6 @@ VkPresentModeKHR Engine::chooseSwapPresentMode(const std::vector<VkPresentModeKH
             return availablePresentMode;
         }
     }
-
     return VK_PRESENT_MODE_FIFO_KHR;
 }
 
@@ -1188,7 +1186,7 @@ void* Engine::createBuffer(uint32_t size, VkBufferUsageFlagBits flags,VkMemoryPr
     VkMemoryAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
     allocInfo.allocationSize = memRequirements.size;
-    allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, properties);
 
     VkDeviceMemory mem;
 
@@ -1206,7 +1204,12 @@ void* Engine::createBuffer(uint32_t size, VkBufferUsageFlagBits flags,VkMemoryPr
 
     vkBuffermanaged.push_back(buff);
     vkmemorymanaged.push_back(mem);
-    vkbuffersrawpointer.insert(std::pair<void*, VkBuffer>(data, buff));
+
+    BufferInfo bInfo = {
+            data, buff, (uint32_t) memRequirements.size
+    };
+
+    vkbuffersrawpointer.insert(std::pair<void*, BufferInfo>(data, bInfo));
     return data;
 
 
@@ -1214,9 +1217,9 @@ void* Engine::createBuffer(uint32_t size, VkBufferUsageFlagBits flags,VkMemoryPr
 
 void Engine::deleteBuffer(void* ptr)
 {
-    if(vkbuffersrawpointer.at(ptr) != VK_NULL_HANDLE)
+    if(vkbuffersrawpointer.at(ptr).buffer != VK_NULL_HANDLE)
     {
-        vkDestroyBuffer(device, vkbuffersrawpointer.at(ptr), nullptr);
+        vkDestroyBuffer(device, vkbuffersrawpointer.at(ptr).buffer, nullptr);
         vkbuffersrawpointer.erase(ptr);
     }
 }
@@ -1238,28 +1241,40 @@ uint32_t Engine::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags prope
     throw std::runtime_error("failed to find suitable memory type!");
 }
 
-void Engine::addDrawableObject(std::vector<void*>& buffers, size_t nbVertices, uint32_t nbInstance)
+void Engine::addDrawableObject(std::vector<std::string>& shaders, std::vector<void*>& buffers, size_t nbVertices, uint32_t nbInstance)
 {
-    std::vector<VkBuffer> bindings(buffers.size());
+
+    lastVertexShader = shaders[0];
+    lastFragmentShader = shaders[1];
+
+    createGraphicsPipeline();
+
+    std::vector<BufferInfo> bufferInfo(buffers.size());
 
     for (size_t i = 0; i < buffers.size(); ++i) {
         auto vkbuff = vkbuffersrawpointer.at(buffers[i]);
-        bindings[i] = vkbuff;
+        bufferInfo[i] = vkbuff;
     }
 
-    assert(!bindings.empty());
+    assert(!bufferInfo.empty());
+
+    std::vector<VkBuffer> bindings(bufferInfo.size());
+
+    for (int i = 0; i < bufferInfo.size();i++) {
+        bindings[i] = bufferInfo[i].buffer;
+    }
 
     DrawableObject tmp = {
             bindings, nbVertices, nbInstance
     };
 
     //Si on a d'autre bindings que le vertexbuffer, c'est qu'on fait notre draw instanced
-    if(bindings.size() > 1)
+    if(bufferInfo.size() > 1)
     {
-        VkDescriptorBufferInfo bufferInfo{};
-        bufferInfo.buffer = bindings[1];
-        bufferInfo.offset = 0;
-        bufferInfo.range = sizeof(glm::mat4) * 3;
+        VkDescriptorBufferInfo buffInfo{};
+        buffInfo.buffer = bufferInfo[1].buffer;
+        buffInfo.offset = 0;
+        buffInfo.range = bufferInfo[1].size;
 
         VkWriteDescriptorSet descriptorWrite{};
         descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -1268,7 +1283,7 @@ void Engine::addDrawableObject(std::vector<void*>& buffers, size_t nbVertices, u
         descriptorWrite.dstArrayElement = 0;
         descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         descriptorWrite.descriptorCount = 1;
-        descriptorWrite.pBufferInfo = &bufferInfo;
+        descriptorWrite.pBufferInfo = &buffInfo;
         descriptorWrite.pImageInfo = nullptr; // Optional
         descriptorWrite.pTexelBufferView = nullptr; // Optional
 

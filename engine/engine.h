@@ -47,6 +47,12 @@ class Engine {
         glm::mat4 render_matrix;
     };
 
+    struct BufferInfo {
+        void* mappedPointer;
+        VkBuffer buffer;
+        uint32_t size;
+    };
+
 public:
 
     void setCamera(Camera &cam);
@@ -70,7 +76,7 @@ public:
      * @param bindings
      * @param nbVertices
      */
-    void addDrawableObject(std::vector<void*>& buffers, size_t nbVertices, uint32_t nbInstance = 1);
+    void addDrawableObject(std::vector<std::string>& shaders, std::vector<void*>& buffers, size_t nbVertices, uint32_t nbInstance = 1);
     void clearDrawableObjects();
 
     struct DrawableObject {
@@ -80,7 +86,7 @@ public:
     };
 
     struct Vertex {
-        glm::vec2 pos;
+        glm::vec3 pos;
 
         static VkVertexInputBindingDescription getBindingDescription() {
             VkVertexInputBindingDescription bindingDescription{};
@@ -95,7 +101,7 @@ public:
 
             attributeDescriptions[0].binding = 0;
             attributeDescriptions[0].location = 0;
-            attributeDescriptions[0].format = VK_FORMAT_R32G32_SFLOAT;
+            attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
             attributeDescriptions[0].offset = offsetof(Vertex, pos);
 
             return attributeDescriptions;
@@ -137,7 +143,10 @@ private:
     std::vector<DrawableObject> drawablesObjects;
     std::vector<VkBuffer> vkBuffermanaged;
     std::vector<VkDeviceMemory> vkmemorymanaged;
-    std::unordered_map<void*, VkBuffer> vkbuffersrawpointer;
+    std::unordered_map<void*, BufferInfo> vkbuffersrawpointer;
+
+    std::string lastVertexShader;
+    std::string lastFragmentShader;
 
     VkSwapchainKHR swapChain;
     std::vector<VkImage> swapChainImages;
