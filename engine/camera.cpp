@@ -10,7 +10,7 @@
 glm::mat4 Camera::getVPMatrix() const
 {
     glm::mat4 view = glm::lookAt(this->position, this->lookAt, this->up);
-    glm::mat4 projection = glm::perspective(glm::radians(this->fov), this->aspect, 0.0001f, 200.0f);
+    glm::mat4 projection = glm::perspective(glm::radians(this->fov), this->aspect, 0.1f, 200.0f);
 
     return projection * view;
 }
