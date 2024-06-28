@@ -1327,7 +1327,7 @@ void Engine::setCamera(Camera &cam)
     this->camera = cam;
 }
 
-const Camera &Engine::getCamera() const {
+Camera &Engine::getCamera() {
     return this->camera;
 }
 

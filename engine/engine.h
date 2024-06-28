@@ -56,7 +56,7 @@ class Engine {
 public:
 
     void setCamera(Camera &cam);
-    const Camera &getCamera() const;
+    Camera &getCamera();
 
     void initEngine();
     void run();

@@ -26,8 +26,8 @@ Camera::Camera(glm::vec3 pos, glm::vec3 lookAt, glm::vec3 up)
 Camera::Camera(glm::vec3 pos, glm::vec3 lookAt, glm::vec3 up, float fov, float aspect)
     : position(pos), lookAt(lookAt), up(up), fov(fov), aspect(aspect) {}
 
-const glm::vec3 &Camera::getPosition() const {
-    return position;
+glm::vec3 &Camera::getPosition() {
+    return this->position;
 }
 
 void Camera::setPosition(const glm::vec3 &nPosition) {

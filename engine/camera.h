@@ -14,7 +14,7 @@ public:
     Camera(glm::vec3 pos, glm::vec3 lookAt, glm::vec3 up);
     Camera(glm::vec3 pos, glm::vec3 lookAt, glm::vec3 up, float fov, float aspect);
 
-    const glm::vec3 &getPosition() const;
+    glm::vec3 &getPosition();
     void setPosition(const glm::vec3 &position);
 
     const glm::vec3 &getLookAt() const;

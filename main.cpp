@@ -16,7 +16,6 @@ std::vector<glm::vec3 > g_points_init = {
         glm::vec3(1.0f, 1.0f, 0)
 };
 
-/*
 //Triangle de Sierpiński
 std::vector<glm::mat4> g_transforms =
         {
@@ -36,7 +35,6 @@ std::vector<glm::mat4> g_transforms =
                           0, 0, 0, 1)
 
         };
-*/
 
 /*
 //Arbre de pythagore
@@ -89,6 +87,7 @@ std::vector<glm::mat4> g_transforms =
 
 //Tetrahèdre de Sierpiǹski
 
+/*
 std::vector<glm::mat4> g_transforms =
         {
                 glm::mat4(0.5, 0, 0, 0,
@@ -112,7 +111,7 @@ std::vector<glm::mat4> g_transforms =
                           0, 0, 0, 1),
 
         };
-
+*/
 bool g_CPU = true;
 
 void* g_uniformBuffer = nullptr;
@@ -165,8 +164,30 @@ void keyboard_callback(GLFWwindow* window, int key, int scancode, int action, in
         {
             computeIFS_GPU(g_points_init, g_transforms, g_iterations);
         }
-
     }
+    else if(key == GLFW_KEY_UP && action == GLFW_PRESS)
+    {
+        auto lookDir = glm::normalize(g_engine.getCamera().getLookAt() - g_engine.getCamera().getPosition());
+        g_engine.getCamera().getPosition() += 0.1f * lookDir;
+    }
+    else if(key == GLFW_KEY_DOWN && action == GLFW_PRESS)
+    {
+        auto lookDir = glm::normalize(g_engine.getCamera().getLookAt() - g_engine.getCamera().getPosition());
+        g_engine.getCamera().getPosition() -= 0.1f * lookDir;
+    }
+    else if(key == GLFW_KEY_RIGHT && action == GLFW_PRESS)
+    {
+        auto lookDir = glm::normalize(g_engine.getCamera().getLookAt() - g_engine.getCamera().getPosition());
+        auto right = glm::cross(lookDir, g_engine.getCamera().getUp());
+        g_engine.getCamera().getPosition() += 0.1f * right;
+    }
+    else if(key == GLFW_KEY_LEFT && action == GLFW_PRESS)
+    {
+        auto lookDir = glm::normalize(g_engine.getCamera().getLookAt() - g_engine.getCamera().getPosition());
+        auto right = glm::cross(lookDir, g_engine.getCamera().getUp());
+        g_engine.getCamera().getPosition() -= 0.1f * right;
+    }
+
 }
 
 int main()
