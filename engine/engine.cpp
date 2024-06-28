@@ -888,7 +888,7 @@ void Engine::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIn
         //upload the matrix to the GPU via push constants
         vkCmdPushConstants(commandBuffer, pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(MeshPushConstants), &pushConstants);
 
-        vkCmdDraw(commandBuffer, object.nbvertices, object.nbInstance, 0, 0);
+        vkCmdDraw(commandBuffer, object.nbVertices, object.nbInstance, 0, 0);
     }
 
     vkCmdEndRenderPass(commandBuffer);

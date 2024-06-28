@@ -81,7 +81,7 @@ public:
 
     struct DrawableObject {
         std::vector<VkBuffer> bindings;
-        size_t nbvertices;
+        size_t nbVertices;
         uint32_t nbInstance;
     };
 
