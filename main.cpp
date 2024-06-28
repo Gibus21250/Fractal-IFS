@@ -2,8 +2,6 @@
 #include <vector>
 #include <chrono>
 
-#include <kompute/Kompute.hpp>
-
 #include "engine/engine.h"
 #include <glm/glm.hpp>
 
