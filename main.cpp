@@ -210,29 +210,43 @@ void computeIFS_CPU(std::vector<glm::vec3> init, std::vector<glm::mat4> &transfo
     }
 
     std::cout << "Allocation needed: " << nbMaxPoints * sizeof(glm::vec3) << " bytes\n";
-    auto* buff = (glm::vec3*) g_engine.createBuffer(nbMaxPoints * sizeof(glm::vec3), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    if(nbMaxPoints * sizeof(glm::vec3) < (uint32_t)-1)
+    {
+        auto *buff = (glm::vec3 *) g_engine.createBuffer(nbMaxPoints * sizeof(glm::vec3),
+                                                         VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+                                                         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+                                                         VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+        //On copie nos points initiaux dans le buffer
+        memcpy(buff, init.data(), sizeof(glm::vec3) * init.size());
 
-    //On copie nos points initiaux dans le buffer
-    memcpy(buff, init.data(), sizeof(glm::vec3) * init.size());
+        auto t1 = std::chrono::high_resolution_clock::now();
+        IFS(buff, init.size(), transforms, iter);
+        auto t2 = std::chrono::high_resolution_clock::now();
 
-    auto t1 = std::chrono::high_resolution_clock::now();
-    IFS(buff, init.size(), transforms, iter);
-    auto t2 = std::chrono::high_resolution_clock::now();
+        std::cout << "Time spent: " << t2 - t1 << "\n";
 
-    std::cout << "Time spent: " << t2 - t1 << "\n";
+        if (g_uniformBuffer == nullptr)
+            g_uniformBuffer = g_engine.createBuffer(transforms.size() * sizeof(glm::mat4),
+                                                    VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                                                    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+                                                    VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
-    if(g_uniformBuffer == nullptr)
-        g_uniformBuffer = g_engine.createBuffer(transforms.size() * sizeof(glm::mat4), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+        //On met à jour l'uniformbuffer des transforms
+        memcpy(g_uniformBuffer, transforms.data(), transforms.size() * sizeof(glm::mat4));
 
-    //On met à jour l'uniformbuffer des transforms
-    memcpy(g_uniformBuffer, transforms.data(), transforms.size() * sizeof(glm::mat4));
+        std::vector<void *> res = {buff, g_uniformBuffer};
 
-    std::vector<void*> res = {buff, g_uniformBuffer};
+        std::vector<std::string> shad{"shaders/vert.spv", "shaders/frag.spv"};
+        g_engine.addDrawableObject(shad, res, nbMaxPoints, 1);
 
-    std::vector<std::string> shad{"shaders/vert.spv", "shaders/frag.spv"};
-    g_engine.addDrawableObject(shad, res, nbMaxPoints, 1);
-
-    g_engine.pushConstants.maxInstance = 0;
+        g_engine.pushConstants.maxInstance = 0;
+    }
+    else
+    {
+        std::cout << "Impossible to make this large allocation (4Go max)\nSwitch to GPU compute\n";
+        g_CPU = false;
+        computeIFS_GPU(init, transforms, iter);
+    }
 }
 
 //Transform are 3D matrices bc of heterogeneous coord
