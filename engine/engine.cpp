@@ -1306,6 +1306,9 @@ void Engine::clearDrawableObjects()
         vkFreeMemory(device, vkmemory, nullptr);
     }
 
+    vkDestroyPipeline(device, graphicsPipeline, nullptr);
+    vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
+
     drawablesObjects.clear();
     vkBuffermanaged.clear();
     vkmemorymanaged.clear();
