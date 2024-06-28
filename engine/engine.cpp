@@ -1206,7 +1206,7 @@ void* Engine::createBuffer(uint32_t size, VkBufferUsageFlagBits flags,VkMemoryPr
     vkmemorymanaged.push_back(mem);
 
     BufferInfo bInfo = {
-            data, buff, (uint32_t) memRequirements.size
+            data, buff, size
     };
 
     vkbuffersrawpointer.insert(std::pair<void*, BufferInfo>(data, bInfo));
