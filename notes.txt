@@ -1,4 +1,2 @@
-ajouter smaa
-activer conservative rasterization OK
-
+add dethbuffer
 activer mouvement caméra + rotation + scale
