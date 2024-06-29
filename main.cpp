@@ -167,26 +167,30 @@ void keyboard_callback(GLFWwindow* window, int key, int scancode, int action, in
     }
     else if(key == GLFW_KEY_UP && action == GLFW_PRESS)
     {
-        auto lookDir = glm::normalize(g_engine.getCamera().getLookAt() - g_engine.getCamera().getPosition());
-        g_engine.getCamera().getPosition() += 0.1f * lookDir;
+        alignas(16) glm::vec3 lookDir = glm::normalize(g_engine.getCamera().getLookAt() - g_engine.getCamera().getPosition());
+        g_engine.getCamera().getPosition() += 0.01f * lookDir;
     }
     else if(key == GLFW_KEY_DOWN && action == GLFW_PRESS)
     {
         auto lookDir = glm::normalize(g_engine.getCamera().getLookAt() - g_engine.getCamera().getPosition());
-        g_engine.getCamera().getPosition() -= 0.1f * lookDir;
+        g_engine.getCamera().getPosition() -= 0.01f * lookDir;
     }
     else if(key == GLFW_KEY_RIGHT && action == GLFW_PRESS)
     {
         auto lookDir = glm::normalize(g_engine.getCamera().getLookAt() - g_engine.getCamera().getPosition());
         auto right = glm::cross(lookDir, g_engine.getCamera().getUp());
-        g_engine.getCamera().getPosition() += 0.1f * right;
+        g_engine.getCamera().getPosition() += 0.01f * right;
     }
     else if(key == GLFW_KEY_LEFT && action == GLFW_PRESS)
     {
         auto lookDir = glm::normalize(g_engine.getCamera().getLookAt() - g_engine.getCamera().getPosition());
         auto right = glm::cross(lookDir, g_engine.getCamera().getUp());
-        g_engine.getCamera().getPosition() -= 0.1f * right;
+        g_engine.getCamera().getPosition() -= 0.01f * right;
     }
+
+    char title[256]; // Ajuster la taille si nécessaire
+    snprintf(title, sizeof(title), "IFS - %s, %zu Iterations", g_CPU?"CPU":"GPU", g_iterations);
+    glfwSetWindowTitle(window, title);
 
 }
 
@@ -213,7 +217,7 @@ void computeIFS_CPU(std::vector<glm::vec3> init, std::vector<glm::mat4> &transfo
     if(nbMaxPoints * sizeof(glm::vec3) < (uint32_t)-1)
     {
         auto *buff = (glm::vec3 *) g_engine.createBuffer(nbMaxPoints * sizeof(glm::vec3),
-                                                         VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+                                                         VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                                                          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
                                                          VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
         //On copie nos points initiaux dans le buffer
@@ -234,6 +238,9 @@ void computeIFS_CPU(std::vector<glm::vec3> init, std::vector<glm::mat4> &transfo
         //On met à jour l'uniformbuffer des transforms
         memcpy(g_uniformBuffer, transforms.data(), transforms.size() * sizeof(glm::mat4));
 
+        //Transfert the buffer to the GPU
+        g_engine.transfertBufferGPU(buff, nbMaxPoints * sizeof(glm::vec3));
+
         std::vector<void *> res = {buff, g_uniformBuffer};
 
         std::vector<std::string> shad{"shaders/vert.spv", "shaders/frag.spv"};
@@ -249,7 +256,7 @@ void computeIFS_CPU(std::vector<glm::vec3> init, std::vector<glm::mat4> &transfo
     }
 }
 
-//Transform are 3D matrices bc of heterogeneous coord
+//Transform are 4D matrices bc of heterogeneous coord
 void IFS(glm::vec3* object, size_t nbVertices, std::vector<glm::mat4>& trans, uint32_t nbIteration)
 {
     //For each iteration
@@ -296,6 +303,7 @@ void computeIFS_GPU(std::vector<glm::vec3>& init, std::vector<glm::mat4>& transf
 
     std::vector<std::string> shad{"shaders/instancedifsvert.spv", "shaders/frag.spv"};
 
+    std::cout << "Number of instances: " << nbInstance << "\n";
     //On ajoute un objet drawable de l'élément de base, mais nbInstances fois
-    g_engine.addDrawableObject(shad, res, 3, nbInstance);
+    g_engine.addDrawableObject(shad, res, init.size(), nbInstance);
 }
