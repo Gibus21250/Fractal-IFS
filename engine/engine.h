@@ -50,6 +50,7 @@ class Engine {
     struct BufferInfo {
         void* mappedPointer;
         VkBuffer buffer;
+        VkDeviceMemory mem;
         uint32_t size;
     };
 
@@ -68,6 +69,7 @@ public:
     void destroy();
 
     void* createBuffer(uint32_t size, VkBufferUsageFlagBits flags, VkMemoryPropertyFlags properties);
+    void transfertBufferGPU(void* src, uint32_t size);
     void deleteBuffer(void* ptr);
 
     /**
@@ -141,8 +143,6 @@ private:
     VkQueue transferQueue;
 
     std::vector<DrawableObject> drawablesObjects;
-    std::vector<VkBuffer> vkBuffermanaged;
-    std::vector<VkDeviceMemory> vkmemorymanaged;
     std::unordered_map<void*, BufferInfo> vkbuffersrawpointer;
 
     std::string lastVertexShader;
@@ -209,6 +209,7 @@ private:
     void recreateSwapChain();
     void cleanupSwapChain();
     void createSwapChain();
+    void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
 
     void createImageViews();
     void createRenderPass();

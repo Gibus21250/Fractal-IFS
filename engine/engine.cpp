@@ -174,12 +174,9 @@ void Engine::cleanup() {
     vkDestroyCommandPool(device, commandPool, nullptr);
 
     //Destroy Buffers
-    for (auto object : vkBuffermanaged) {
-        vkDestroyBuffer(device, object, nullptr);
-    }
-
-    for (auto vkmemory : vkmemorymanaged) {
-        vkFreeMemory(device, vkmemory, nullptr);
+    for (auto object : vkbuffersrawpointer) {
+        vkDestroyBuffer(device, object.second.buffer, nullptr);
+        vkFreeMemory(device, object.second.mem, nullptr);
     }
 
     vkDestroyDevice(device, nullptr);
@@ -406,7 +403,7 @@ void Engine::pickPhysicalDevice() {
     vkEnumeratePhysicalDevices(instance, &deviceCount, devices.data());
 
     //TODO HACK pour selectionner le 2eme gpu (= 1)
-    int tmp = 1;
+    int tmp = 0;
     for (const auto& device : devices) {
         if (isDeviceSuitable(device) && !tmp) {
             physicalDevice = device;
@@ -1246,17 +1243,12 @@ void* Engine::createBuffer(uint32_t size, VkBufferUsageFlagBits flags,VkMemoryPr
     
     vkMapMemory(device, mem, 0, bufferInfo.size, 0, &data);
 
-    vkBuffermanaged.push_back(buff);
-    vkmemorymanaged.push_back(mem);
-
     BufferInfo bInfo = {
-            data, buff, size
+            data, buff, mem, size
     };
 
     vkbuffersrawpointer.insert(std::pair<void*, BufferInfo>(data, bInfo));
     return data;
-
-
 }
 
 void Engine::deleteBuffer(void* ptr)
@@ -1264,6 +1256,7 @@ void Engine::deleteBuffer(void* ptr)
     if(vkbuffersrawpointer.at(ptr).buffer != VK_NULL_HANDLE)
     {
         vkDestroyBuffer(device, vkbuffersrawpointer.at(ptr).buffer, nullptr);
+        vkFreeMemory(device, vkbuffersrawpointer.at(ptr).mem, nullptr);
         vkbuffersrawpointer.erase(ptr);
     }
 }
@@ -1342,20 +1335,15 @@ void Engine::clearDrawableObjects()
 
     vkDeviceWaitIdle(device);
     //Destroy Buffers
-    for (auto object : vkBuffermanaged) {
-        vkDestroyBuffer(device, object, nullptr);
-    }
-
-    for (auto vkmemory : vkmemorymanaged) {
-        vkFreeMemory(device, vkmemory, nullptr);
+    for (auto object : vkbuffersrawpointer) {
+        vkDestroyBuffer(device, object.second.buffer, nullptr);
+        vkFreeMemory(device, object.second.mem, nullptr);
     }
 
     vkDestroyPipeline(device, graphicsPipeline, nullptr);
     vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
 
     drawablesObjects.clear();
-    vkBuffermanaged.clear();
-    vkmemorymanaged.clear();
     vkbuffersrawpointer.clear();
 
 }
@@ -1596,4 +1584,89 @@ void Engine::endSingleTimeCommands(VkCommandBuffer commandBuffer) {
     vkQueueWaitIdle(graphicsQueue);
 
     vkFreeCommandBuffers(device, commandPool, 1, &commandBuffer);
+}
+
+void Engine::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size)
+{
+    VkCommandBufferAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    allocInfo.commandPool = commandPool;
+    allocInfo.commandBufferCount = 1;
+
+    VkCommandBuffer commandBuffer;
+    vkAllocateCommandBuffers(device, &allocInfo, &commandBuffer);
+
+    VkCommandBufferBeginInfo beginInfo{};
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+    vkBeginCommandBuffer(commandBuffer, &beginInfo);
+
+    VkBufferCopy copyRegion{};
+    copyRegion.srcOffset = 0; // Optional
+    copyRegion.dstOffset = 0; // Optional
+    copyRegion.size = size;
+    vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, &copyRegion);
+
+    vkEndCommandBuffer(commandBuffer);
+
+    //Now send the commande
+    VkSubmitInfo submitInfo{};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &commandBuffer;
+
+    vkQueueSubmit(graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
+    vkQueueWaitIdle(graphicsQueue);
+    vkFreeCommandBuffers(device, commandPool, 1, &commandBuffer);
+}
+
+void Engine::transfertBufferGPU(void *src, uint32_t size)
+{
+    BufferInfo& buffSrc = vkbuffersrawpointer.at(src);
+
+    //Create a buffer on the GPU VRAM
+    VkBufferCreateInfo bufferInfo{};
+    bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    bufferInfo.size = size;
+    bufferInfo.usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT; //TODO adapte to change for uniform too
+    bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+    VkBuffer gpubuff;
+
+    if (vkCreateBuffer(device, &bufferInfo, nullptr, &gpubuff) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create vertex buffer!");
+    }
+
+    VkMemoryRequirements memRequirements;
+    vkGetBufferMemoryRequirements(device, gpubuff, &memRequirements);
+
+    VkMemoryAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    allocInfo.allocationSize = memRequirements.size;
+    allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+    VkDeviceMemory mem;
+
+    if (vkAllocateMemory(device, &allocInfo, nullptr, &mem) != VK_SUCCESS) {
+        throw std::runtime_error("failed to allocate memory memory!");
+    }
+
+    vkBindBufferMemory(device, gpubuff, mem, 0);
+
+    //Now copy from the first VkBuffer to the VkBuffer on the GPU's VRAM
+    copyBuffer(buffSrc.buffer, gpubuff, size);
+
+    //Now we replace the VkBuffer for this buffer (dangerous)
+    deleteBuffer(src);
+
+    BufferInfo info = {
+            src,
+            gpubuff,
+            mem,
+            size
+    };
+    vkbuffersrawpointer.insert(std::pair<void*, BufferInfo>(src, info));
+    //Now we cannot bind this buffer to write in
 }
