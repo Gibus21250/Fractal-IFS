@@ -148,6 +148,11 @@ private:
     std::string lastVertexShader;
     std::string lastFragmentShader;
 
+    //Depth
+    VkImage depthImage;
+    VkDeviceMemory depthImageMemory;
+    VkImageView depthImageView;
+
     VkSwapchainKHR swapChain;
     std::vector<VkImage> swapChainImages;
     VkFormat swapChainImageFormat;
@@ -212,6 +217,7 @@ private:
     void createFramebuffers();
     void createDescriptorPool();
     void createDescriptorSets();
+    void createDepthResources();
     void createCommandPool();
     void createCommandBuffers();
     void createSyncObjects();
@@ -228,10 +234,22 @@ private:
 
     void cleanup();
 
+    void createImage(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory);
+    VkImageView createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags);
+    void transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
+
+    VkCommandBuffer beginSingleTimeCommands();
+    void endSingleTimeCommands(VkCommandBuffer commandBuffer);
+
+    VkFormat findDepthFormat();
+    bool hasStencilComponent(VkFormat format) {
+        return format == VK_FORMAT_D32_SFLOAT_S8_UINT || format == VK_FORMAT_D24_UNORM_S8_UINT;
+    }
     VkShaderModule createShaderModule(const std::vector<char>& code);
     VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats);
     VkPresentModeKHR chooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes);
     VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities);
+    VkFormat findSupportedFormat(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features);
     SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice pDeviceT);
     bool isDeviceSuitable(VkPhysicalDevice pDeviceT);
     bool checkDeviceExtensionSupport(VkPhysicalDevice pDeviceT);
