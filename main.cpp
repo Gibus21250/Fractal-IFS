@@ -365,7 +365,7 @@ void computeIFS_CPU(std::vector<glm::vec3> init, std::vector<glm::mat4> &transfo
         IFS(buff, init.size(), transforms, iter);
         auto t2 = std::chrono::high_resolution_clock::now();
 
-        std::cout << "Time spent: " << t2 - t1 << "\n";
+        std::cout << "Time spent: " << std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count() << " ns\n";
 
         if (g_uniformBuffer == nullptr)
             g_uniformBuffer = g_engine.createBuffer(transforms.size() * sizeof(glm::mat4),
