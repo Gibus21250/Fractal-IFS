@@ -1,2 +1,3 @@
-add dethbuffer
-activer mouvement caméra + rotation + scale
+ajouter interface Dear ImGUI
+Implémenter l'algo en compute shader, pour stocker le résultat de l'IFS en mémoire
+Implémenter une solution pour stocker le resultat des IFS prennant plus de 4Go de mémoire
