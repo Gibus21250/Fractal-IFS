@@ -6,9 +6,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 add_subdirectory(third-party/glfw)
 
-include_directories(${CMAKE_SOURCE_DIR}/third-party/glm/glm ${CMAKE_SOURCE_DIR}/third-party/glfw/include Vulkan::Headers)
-
 find_package(Vulkan REQUIRED)
+
+include_directories(${CMAKE_SOURCE_DIR}/third-party/glm/glm ${CMAKE_SOURCE_DIR}/third-party/glfw/include Vulkan::Headers)
 
 add_executable(${PROJECT_NAME} main.cpp
         engine/engine.cpp
