@@ -1,3 +1,4 @@
 ajouter interface Dear ImGUI
+controle souris de la camera
 Implémenter l'algo en compute shader, pour stocker le résultat de l'IFS en mémoire
 Implémenter une solution pour stocker le resultat des IFS prennant plus de 4Go de mémoire
